@@ -73,6 +73,8 @@ public class JDBCTemplateDAO {
 		return template.queryForObject(sql, Integer.class);
 	}
 	
+	
+	
 	//게시판 리스트 페이지처리(X)
 	public ArrayList<SpringBbsDTO> list(
 			Map<String, Object> map){
@@ -83,7 +85,8 @@ public class JDBCTemplateDAO {
 			sql += " WHERE "+map.get("Column")+" "
 				+ " LIKE '%" + map.get("Word")+"%' ";
 		}
-		sql += " ORDER BY idx DESC ";
+		//sql += " ORDER BY idx DESC ";
+		sql +=" ORDER BY bgroup DESC, bstep ASC";
 		
 		
 		/*
@@ -94,6 +97,35 @@ public class JDBCTemplateDAO {
 		return (ArrayList<SpringBbsDTO>)template.query(sql, 
 			new BeanPropertyRowMapper<SpringBbsDTO>(SpringBbsDTO.class));
 	}
+	
+	
+	
+	//리스트처리(페이지처리(0))
+		public ArrayList<SpringBbsDTO> listPage(
+				Map<String, Object> map){
+
+			int start = Integer.parseInt(map.get("start").toString());
+			int end = Integer.parseInt(map.get("end").toString());
+			
+			String sql = ""
+					+"SELECT * FROM ("
+					+"    SELECT Tb.*, rownum rNum FROM ("
+					+"        SELECT * FROM springboard ";				
+				if(map.get("Word")!=null){
+					sql +=" WHERE "+map.get("Column")+" "
+						+ " LIKE '%"+map.get("Word")+"%' ";				
+				}			
+				sql += " ORDER BY bgroup DESC, bstep ASC"
+				+"    ) Tb"
+				+")"
+				+" WHERE rNum BETWEEN "+start+" and "+end;
+			
+			return (ArrayList<SpringBbsDTO>)
+				template.query(sql, 
+					new BeanPropertyRowMapper<SpringBbsDTO>(
+					SpringBbsDTO.class));
+			}
+
 	
 	
 	
@@ -183,12 +215,13 @@ public class JDBCTemplateDAO {
 	}
 	
 	
-	//패스워드 처리
+	//패스워드 검증
 	public int password(String idx, String pass) {
 		
 		int retNum = 0;
 		String sql = "SELECT * FROM springboard "
 				+ " WHERE pass = " + pass + " AND idx=" +idx;
+		System.out.println(sql);
 		
 		
 		/*
@@ -199,14 +232,144 @@ public class JDBCTemplateDAO {
 		try {
 			SpringBbsDTO dto=template.queryForObject(sql, 
 					new BeanPropertyRowMapper<SpringBbsDTO>(
-							
 							SpringBbsDTO.class));
 			
+			/*
+			 idx와 pass에 해당하는 게시물이 정상적으로 가져와졌을때는
+			 해당 idx값을 반환값으로 사용한다.
+			 */
 			retNum = dto.getIdx();
 		}
 		catch (Exception e) {
+			/*
+			 만약 일치하지 않아 예외가 발생되면 0을 반환한다. 일련번호는
+			 시퀀스를 사용하므로 항상 0보다는 큰 값을 가지게된다.
+			 */
 			System.out.println("password() 예외발생");
 		}
 		return retNum;
 	}
+	
+	//수정처리
+	public void edit(final SpringBbsDTO dto) {
+		
+		/*
+		 해당 게시판에서 패스워드는 변경의 대상이 아니라
+		 검증의 대상으로만 사용. 따라서 set절이 아닌
+		 where절에 삽입됨.
+		 */
+		String sql = "UPDATE springboard "
+				+ " SET name=?, title=?, contents=? "
+				+ " WHERE idx=? AND pass=?";
+		
+		/*
+		 매개변수 dto 객체를 아래 익명 클래스 내부에서 사용해야 하므로
+		 반드시 final을 붙여줘야 한다.
+		 */
+		template.update(sql, new PreparedStatementSetter() {
+			
+			@Override
+			public void setValues(PreparedStatement ps) 
+					throws SQLException {
+				
+				ps.setString(1, dto.getName());
+				ps.setString(2, dto.getTitle());
+				ps.setString(3, dto.getContents());
+				ps.setInt(4, dto.getIdx());
+				ps.setString(5, dto.getPass());
+				
+			}
+		});
+	}
+	
+	
+	//삭제처리
+	public void delete(final String idx, final String pass) {
+		
+		String sql = "DELETE FROM springboard "
+				+ " WHERE idx=? AND pass=? ";
+		template.update(sql, new PreparedStatementSetter() {
+			
+			
+			
+			@Override
+			public void setValues(PreparedStatement ps) throws SQLException {
+				
+				ps.setString(1, idx);
+				ps.setString(2, pass);
+				
+			}
+		});
+	}
+	
+	
+	public void reply(final SpringBbsDTO dto) {
+		//답변글쓰기전 레코드 업데이트
+		replyPrevUpdate(dto.getBgroup(), dto.getBstep());
+		
+		
+		/*
+		 원본글의 경우 idx와 bgroup은 동일한 값을 입력.
+		 답변들의 경우 원본글의 group번호를 그대로 가져와서 입력.
+		 idx는 시퀀스를 통해 bgroup은 원본글과 동일하게 입력.
+		 */
+		String sql = "INSERT INTO springboard "
+				+ " (idx, name, title, contents, pass, "
+				+ " bgroup, bstep, bindent) "
+				+ " VALUES  "
+				+ " (springboard_seq.NEXTVAL,?,?,?,?,"
+				+ " ?,?,?) "; 
+		
+		
+		/*
+		 답변글인 경우 원본글의 step+1, indent+1 처리하여 입력한다.
+		 */
+		template.update(sql, new PreparedStatementSetter() {
+			
+			
+			
+			@Override
+			public void setValues(PreparedStatement ps) throws SQLException {
+				
+				ps.setString(1, dto.getName());
+				ps.setString(2, dto.getTitle());
+				ps.setString(3, dto.getContents());
+				ps.setString(4, dto.getPass());
+				ps.setInt(5,  dto.getBgroup());
+				ps.setInt(6,  dto.getBstep()+1);
+				ps.setInt(7,  dto.getBindent()+1);
+				
+				
+				
+			}
+		});
+	}
+	
+	
+	
+	
+	//답변글 입력전 레코드 일괄 업데이트 (step을 뒤로 밀어주기 위한 로직)
+	public void replyPrevUpdate(final int strGroup, final int strStep) {
+		
+			String sql = "UPDATE springboard "
+					+ " SET bstep = bstep+1 "
+					+ " WHERE bgroup=? AND bstep>?";
+			template.update(sql, new PreparedStatementSetter() {
+				
+				@Override
+				public void setValues(PreparedStatement ps) throws SQLException {
+					
+					ps.setInt(1, strGroup);
+					ps.setInt(2, strStep);
+					
+				}
+			});
+	}
+	
+	
+	
+	
+	
+	
+	
 }
