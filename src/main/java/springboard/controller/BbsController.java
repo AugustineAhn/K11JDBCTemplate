@@ -32,6 +32,8 @@ import springboard.model.SpringBbsDTO;
  	-타입을 이용해 자동으로 프로퍼티의 값을 설정
  	-따라서 빈을 주입받을 객체가 존재하지 않거나, 같은 타입이
  	2개 이상 존재하면 예외가 발생됨.
+ 	-해당 어노테이션은 멤버변수에만 적용할 수 있다. 함수 내의 
+ 	지역변수에서는 사용할 수 없다.
  */
 @Controller
 public class BbsController {
@@ -43,7 +45,7 @@ public class BbsController {
 	 스프링 어플리케이션이 구동될때 미리 생성된 JDBCTemplate타입의
 	 빈을 자동으로 주입받게 된다.
 	 */
-	@Autowired
+	/*@Autowired 1차버전
 	public void setTemplate(JdbcTemplate template) {
 		this.template = template;
 		System.out.println("@AutoWired->Template 연결성공");
@@ -53,7 +55,16 @@ public class BbsController {
 		
 	
 	} 
+	*/
 	
+	//2차에서 사용
+	JDBCTemplateDAO dao;	
+	@Autowired
+	public void setDao(JDBCTemplateDAO dao) {
+		this.dao = dao;
+		System.out.println();
+		
+	}
 	/*
 	 BbsCommandImpl 타입의 멤버변수 선언.
 	 멤버변수이므로 클래스 내에서 전역적으로 사용.
@@ -61,6 +72,37 @@ public class BbsController {
 	 */
 	BbsCommandImpl command = null;	
 		
+	/*
+	 Spring에서는 new를 통해 객체를 생성하지 않고 스프링컨테이너에
+	 의해 미리 생성된 빈(객체)를 주입(DI)받아서 사용하게된다.
+	 따라서 기본 클래스가 아닌 개발자가 직접 정의하여 자주 사용되는
+	 객체들은 아래와 같이 자동주입 받아서 사용하는 것이 스프링
+	 개발방법론에 부합하는 방법이다.
+	 */
+	@Autowired
+	ListCommand  listCommand;
+	
+	@Autowired
+	ViewCommand viewCommand;
+	
+	@Autowired
+	WriteActionCommand writeActionCommand;
+	
+	@Autowired
+	EditCommand editCommand;
+	
+	@Autowired
+	DeleteActionCommand deleteActionCommand;
+	
+	@Autowired
+	EditActionCommand editActionCommand;
+	
+	@Autowired
+	ReplyCommand replyCommand;
+	
+	@Autowired
+	ReplyActionCommand replyActionCommand;
+
 	//게시판 리스트
 	@RequestMapping("/board/list.do")
 	public String list(Model model, HttpServletRequest req) {
@@ -77,11 +119,13 @@ public class BbsController {
 		 호출하고, 실제 DAO의 호출이나 비즈니스로직은 아래 Command
 		 객체가 처리하게 된다.
 		 */
-		command = new ListCommand();
+		//command = new ListCommand();
+		
+		command = listCommand;
 		command.execute(model);
 		
 		return "07Board/list";
-		}
+	}
 	
 	
 	//상세보기
@@ -91,7 +135,8 @@ public class BbsController {
 		
 		model.addAttribute("req" , req);
 		
-		command = new ViewCommand();
+		//command = new ViewCommand();
+		command = viewCommand;
 		command.execute(model);
 		
 		return "07Board/view";
@@ -117,7 +162,8 @@ public class BbsController {
 			model.addAttribute("req", req);
 			//View에서 전송한 폼값을 한꺼번에 저장한 커맨드 객체로 DTO를 저장
 			model.addAttribute("springBbsDTO", springBbsDTO);
-			command = new WriteActionCommand();
+			
+			command = writeActionCommand;
 			command.execute(model);
 			
 			//글쓰기 처리 완료후 list.do로 로케이션(이동) 된다.
@@ -136,7 +182,7 @@ public class BbsController {
 		String nowPage = req.getParameter("nowPage");
 		String pass = req.getParameter("pass");
 		
-		JDBCTemplateDAO dao = new JDBCTemplateDAO();
+		//JDBCTemplateDAO dao = new JDBCTemplateDAO();
 		
 		int rowExist = dao.password(idx, pass);
 		
@@ -155,7 +201,7 @@ public class BbsController {
 			if(mode.equals("edit")) {
 				
 				model.addAttribute("req", req);
-				command = new EditCommand();
+				command = editCommand;
 				command.execute(model);
 				
 				modePage = "07Board/edit";
@@ -164,7 +210,7 @@ public class BbsController {
 			else if(mode.equals("delete")) {
 				//패스워드 검증 후 문제가 없다면 즉시 삭제처리한다.
 				model.addAttribute("req", req);
-				command = new DeleteActionCommand();
+				command = deleteActionCommand;
 				command.execute(model);
 				
 				/*
@@ -197,7 +243,7 @@ public class BbsController {
 		
 		model.addAttribute("req", req);
 		model.addAttribute("springBbsDTO", springBbsDTO);
-		command = new EditActionCommand();
+		command = editActionCommand;
 		command.execute(model);
 		
 		/*
@@ -219,7 +265,7 @@ public class BbsController {
 		System.out.println("reply()메소드호출");
 		
 		model.addAttribute("req", req);
-		command = new ReplyCommand();
+		command = replyCommand;
 		command.execute(model);
 		
 		model.addAttribute("idx", req.getParameter("idx"));
@@ -235,7 +281,7 @@ public class BbsController {
 		model.addAttribute("springBbsDTO", springBbsDTO);
 		
 		model.addAttribute("req", req);
-		command = new ReplyActionCommand();
+		command = replyActionCommand;
 		command.execute(model);
 		
 		//답글쓰기 완료후 리스트 페이지로 이동함

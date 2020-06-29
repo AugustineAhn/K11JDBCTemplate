@@ -5,6 +5,8 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
 
 import springboard.model.JDBCTemplateDAO;
@@ -16,8 +18,21 @@ import springboard.util.PagingUtil;
 	오버라이딩 해야 한다. 또한 해당 객체는 부모타입인 BbsCommandImpl로
 	참조할 수 있다.
 */
+
+/*
+ Service 역할의 클래스임을 명시함.
+ Service 객체는 Controller와 Model사이에서 중재역할을 함.
+ */
+@Service
 public class ListCommand implements BbsCommandImpl{
 	
+	JDBCTemplateDAO dao;	
+	@Autowired	
+	public void setDao(JDBCTemplateDAO dao) {
+		this.dao = dao;
+		System.out.println("JDBCTemplateDAO 자동주입(List)");
+	}
+
 	/*
 	 컨트롤러에서 인자로 전달해준 model객체를 매개변수로 전달받는다.
 	 model객체에는 사용자가 요청한 정보인 request객체가 저장되어있다.
@@ -35,8 +50,8 @@ public class ListCommand implements BbsCommandImpl{
 		HttpServletRequest req = 
 				(HttpServletRequest)paramMap.get("req");
 		
-		//DAO객체 생성
-		JDBCTemplateDAO dao = new JDBCTemplateDAO();
+		//DAO객체 생성(1차버전)
+		//JDBCTemplateDAO dao = new JDBCTemplateDAO();
 		
 		//검색어 관련 폼값 처리
 		String addQueryString = "";

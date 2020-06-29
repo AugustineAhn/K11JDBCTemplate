@@ -25,7 +25,12 @@
 	<!-- 기본패키지를 추가한다. 그러면 새로운 요청이 들어왔을때
 		아래 2개의 패키지를 검색(scan)하여 컨트롤러를 찾게된다. -->
 	<context:component-scan base-package="com.kosmo.k11jdbctemplate" />
-	<context:component-scan base-package="springboard.controller" />
+	
+	<!--Spring-JDBC 1차버전에서 사용: new로 DAO객체생성  -->
+	<!-- <context:component-scan base-package="springboard.controller" /> -->
+	
+	<!--Spring-JDBC 2차버전에서 사용: DI로 DAO 객체생성  -->
+	<context:component-scan base-package="springboard" />
 	
 	
 	<!-- 
@@ -33,6 +38,8 @@
 		해당 xml파일에서 jdbc연결을 위한 빈을 생성한 후 컨트롤러에서
 		자동주입(Autowired) 받아서 사용하게 된다.
 	 -->
+	 
+	 <!-- 오라클 연결정보 -->
 	 <beans:bean name="dataSource"
 	 	class="org.springframework.jdbc.datasource.DriverManagerDataSource">
 	 	<beans:property name="driverClassName" value="oracle.jdbc.OracleDriver"/>
@@ -41,10 +48,15 @@
 	 	<beans:property name="password" value="1234"/>
 	 </beans:bean>
 	 
+	 <!-- dataSource를 기반으로 JDBCTemplate을 사용하기 위한 빈  -->
 	 <beans:bean name="template" 
 	 	class="org.springframework.jdbc.core.JdbcTemplate">
 	 	<beans:property name="dataSource" ref="dataSource"/>
 	 </beans:bean>
 	 
+	 <!-- template을 기반으로 게시판에서 사용한 DAO 빈 생성 -->
+	 <beans:bean name="dao" class="springboard.model.JDBCTemplateDAO">
+	 	<beans:property name="template" ref="template"></beans:property>
+	 </beans:bean>
 	
 </beans:beans>
